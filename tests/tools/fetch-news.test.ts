@@ -65,7 +65,8 @@ describe("fetchNews tool", () => {
     expect(result.results[0].category).toBe("sports");
   });
 
-  it("overrides count_per_category when provided", async () => {
+  it("over-fetches by buffer to compensate for filtering losses", async () => {
+    // count_per_category=10 → should request display=20 (10 + OVER_FETCH_BUFFER=10)
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -81,7 +82,26 @@ describe("fetchNews tool", () => {
     await fetchNews({ count_per_category: 10 }, mockConfig);
 
     const [url] = fetchMock.mock.calls[0] as [string];
-    expect(url).toContain("display=10");
+    expect(url).toContain("display=20");
+  });
+
+  it("caps over-fetch at 100 (Naver API max)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        lastBuildDate: "",
+        total: 0,
+        start: 1,
+        display: 0,
+        items: [],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchNews({ count_per_category: 95 }, mockConfig);
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain("display=100");
   });
 
   it("throws when categories is empty array", async () => {
@@ -94,6 +114,79 @@ describe("fetchNews tool", () => {
     await expect(
       fetchNews({ count_per_category: 0 }, mockConfig)
     ).rejects.toThrow("between 1 and 100");
+  });
+
+  it("filters out bracket-prefixed notice articles", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 3,
+          start: 1,
+          display: 3,
+          items: [
+            { ...mockArticle, title: "[알림] 서비스 점검 안내", link: "https://a.com" },
+            { ...mockArticle, title: "[공고] 채용 공고", link: "https://b.com" },
+            { ...mockArticle, title: "실제 뉴스 기사", link: "https://c.com" },
+          ],
+        }),
+      })
+    );
+
+    const result = await fetchNews({ categories: ["AI"] }, mockConfig);
+    expect(result.results[0].articles).toHaveLength(1);
+    expect(result.results[0].articles[0].title).toBe("실제 뉴스 기사");
+  });
+
+  it("keeps articles whose title starts with a word in brackets inside the title", async () => {
+    // Only leading [bracket] should be filtered; brackets elsewhere are fine
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 1,
+          start: 1,
+          display: 1,
+          items: [
+            { ...mockArticle, title: "삼성전자 [갤럭시] 신제품 공개" },
+          ],
+        }),
+      })
+    );
+
+    const result = await fetchNews({ categories: ["AI"] }, mockConfig);
+    expect(result.results[0].articles).toHaveLength(1);
+  });
+
+  it("trims articles to count after deduplication", async () => {
+    // API returns 5 unique articles; count=3 → should keep only 3
+    const items = Array.from({ length: 5 }, (_, i) => ({
+      ...mockArticle,
+      title: `Article ${i}`,
+      link: `https://example.com/${i}`,
+      originallink: `https://orig.com/${i}`,
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 5,
+          start: 1,
+          display: 5,
+          items,
+        }),
+      })
+    );
+
+    const result = await fetchNews({ categories: ["AI"] }, mockConfig);
+    // mockConfig.news.count_per_category = 3
+    expect(result.results[0].articles).toHaveLength(3);
   });
 
   it("truncates description longer than 200 chars", async () => {

@@ -5,7 +5,7 @@ const NOTION_VERSION = "2022-06-28";
 
 interface NotionRichText {
   type: "text";
-  text: { content: string };
+  text: { content: string; link?: { url: string } };
 }
 
 interface NotionBlock {
@@ -14,12 +14,48 @@ interface NotionBlock {
   [key: string]: unknown;
 }
 
+/**
+ * Converts a text string into Notion rich_text elements.
+ * Parses inline markdown links [text](url) into clickable Notion links.
+ * Respects Notion's 2000-char limit per rich_text element.
+ */
 function buildRichText(text: string): NotionRichText[] {
-  // Notion has a 2000-char limit per rich_text element
   const chunks: NotionRichText[] = [];
-  for (let i = 0; i < text.length; i += 2000) {
-    chunks.push({ type: "text", text: { content: text.slice(i, i + 2000) } });
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    // Plain text before this link
+    if (match.index > lastIndex) {
+      const before = text.slice(lastIndex, match.index);
+      for (let i = 0; i < before.length; i += 2000) {
+        chunks.push({ type: "text", text: { content: before.slice(i, i + 2000) } });
+      }
+    }
+    // The link element
+    chunks.push({
+      type: "text",
+      text: { content: match[1], link: { url: match[2] } },
+    });
+    lastIndex = match.index + match[0].length;
   }
+
+  // Remaining plain text after the last link
+  if (lastIndex < text.length) {
+    const remaining = text.slice(lastIndex);
+    for (let i = 0; i < remaining.length; i += 2000) {
+      chunks.push({ type: "text", text: { content: remaining.slice(i, i + 2000) } });
+    }
+  }
+
+  // No links found — fall back to simple chunking
+  if (chunks.length === 0) {
+    for (let i = 0; i < text.length; i += 2000) {
+      chunks.push({ type: "text", text: { content: text.slice(i, i + 2000) } });
+    }
+  }
+
   return chunks;
 }
 
@@ -28,7 +64,9 @@ function contentToBlocks(content: string): NotionBlock[] {
   const blocks: NotionBlock[] = [];
 
   for (const line of lines) {
-    if (line.startsWith("# ")) {
+    if (line === "---") {
+      blocks.push({ object: "block", type: "divider", divider: {} });
+    } else if (line.startsWith("# ")) {
       blocks.push({
         object: "block",
         type: "heading_1",

@@ -289,6 +289,83 @@ All checks must pass before merging any PR. Fix all failures before committing.
 
 ---
 
+## Notion Page Format
+
+When calling `create_notion_page`, the AI model must use the following format for the `content` field.
+The skill's markdown parser supports: `# h1`, `## h2`, `### h3`, `- bullet`, `---` divider, inline `[text](url)` links, and plain paragraphs.
+
+### Template
+
+```
+## {카테고리명}
+
+### {기사 제목}
+
+{2–3줄 분량의 핵심 요약. 객관적 사실 위주로 작성.}
+
+- 🔗 [원문 보기]({originallink 우선, 없으면 link})
+
+---
+
+### {다음 기사 제목}
+
+{요약}
+
+- 🔗 [원문 보기]({url})
+
+---
+
+## {다음 카테고리명}
+
+### {기사 제목}
+...
+```
+
+### Rules
+
+| Element | Rule |
+|---|---|
+| Page title | `뉴스 요약 – YYYY-MM-DD` (오늘 날짜) |
+| 카테고리 헤더 | `## {category}` — 카테고리당 H2 하나 |
+| 기사 헤더 | `### {title}` — 기사 제목 그대로 H3 |
+| 요약 | H3 바로 아래 빈 줄 + 2–3문장 평문 |
+| 링크 | `- 🔗 [원문 보기]({url})` — `originallink` 우선, 없으면 `link` 사용 |
+| 구분선 | 같은 카테고리 내 기사 사이에 `---` 삽입; 카테고리 마지막 기사 뒤에는 생략 |
+| 빈 줄 | 각 요소(헤더·요약·링크) 사이에 빈 줄 한 줄 |
+
+### Example
+
+```
+## AI
+
+### OpenAI, GPT-5 공개 일정 발표
+
+OpenAI가 다음 달 GPT-5를 공개한다고 밝혔다. 이번 모델은 추론 능력과 멀티모달 처리 성능이
+크게 향상됐으며, 기업용 API는 출시 당일부터 제공될 예정이다.
+
+- 🔗 [원문 보기](https://techcrunch.com/...)
+
+---
+
+### 삼성전자, AI 칩 자체 개발 가속화
+
+삼성전자가 자체 AI 가속 칩 개발에 3조 원을 추가 투자한다고 발표했다. 엔비디아 의존도를
+줄이기 위한 전략으로, 2026년 하반기 양산을 목표로 하고 있다.
+
+- 🔗 [원문 보기](https://zdnet.co.kr/...)
+
+## 경제
+
+### 한국은행, 기준금리 동결 결정
+
+한국은행 금융통화위원회가 기준금리를 현행 3.25%로 동결하기로 결정했다. 고물가와
+경기 둔화 우려가 동시에 작용하면서 금리 조정을 유보한 것으로 풀이된다.
+
+- 🔗 [원문 보기](https://news.mt.co.kr/...)
+```
+
+---
+
 ## Out of Scope
 
 - No scraping of Naver pages outside the official Search API

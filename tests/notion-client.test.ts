@@ -119,4 +119,51 @@ describe("NotionClient", () => {
     const client = new NotionClient(mockConfig);
     await expect(client.createPage("Title")).rejects.toThrow("Network error");
   });
+
+  it("renders --- as a divider block", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "p3", url: "https://notion.so/p3" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new NotionClient(mockConfig);
+    await client.createPageWithContent("Title", "Line one\n---\nLine two");
+
+    const patchCall = fetchMock.mock.calls[1] as [string, RequestInit];
+    const body = JSON.parse(patchCall[1].body as string) as {
+      children: Array<{ type: string }>;
+    };
+    const types = body.children.map((b) => b.type);
+    expect(types).toContain("divider");
+  });
+
+  it("renders [text](url) as a rich_text link element", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "p4", url: "https://notion.so/p4" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new NotionClient(mockConfig);
+    await client.createPageWithContent(
+      "Title",
+      "- [원문 보기](https://example.com/article)"
+    );
+
+    const patchCall = fetchMock.mock.calls[1] as [string, RequestInit];
+    const body = JSON.parse(patchCall[1].body as string) as {
+      children: Array<{
+        type: string;
+        bulleted_list_item?: {
+          rich_text: Array<{ text: { content: string; link?: { url: string } } }>;
+        };
+      }>;
+    };
+    const richText = body.children[0].bulleted_list_item!.rich_text;
+    const linkElement = richText.find((r) => r.text.link !== undefined);
+    expect(linkElement).toBeDefined();
+    expect(linkElement!.text.content).toBe("원문 보기");
+    expect(linkElement!.text.link!.url).toBe("https://example.com/article");
+  });
 });
