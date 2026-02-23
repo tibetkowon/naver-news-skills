@@ -15,14 +15,10 @@ You (the agent) are responsible for summarizing and editing the articles between
 
 ---
 
-## Setup (one-time)
+## Requirements
 
-```bash
-npm install     # installs build tools (dev deps only — no runtime deps)
-npm run build   # compiles TypeScript → dist/
-```
-
-After this, only `node` is required to run the skills.
+- Node.js >= 18
+- No installation needed — `dist/` is pre-built and committed to the repository
 
 ---
 
