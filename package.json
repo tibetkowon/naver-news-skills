@@ -1,0 +1,23 @@
+{
+  "name": "naver-news-skills",
+  "version": "1.0.0",
+  "description": "CLI skills for collecting Naver news and writing to Notion",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint src tests --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "dev:fetch": "tsx src/cli/fetch-news.ts",
+    "dev:notion": "tsx src/cli/create-notion-page.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}
