@@ -1,0 +1,14 @@
+{
+  "naver": {
+    "client_id": "YOUR_NAVER_CLIENT_ID",
+    "client_secret": "YOUR_NAVER_CLIENT_SECRET"
+  },
+  "notion": {
+    "api_key": "YOUR_NOTION_API_KEY",
+    "parent_page_id": "YOUR_NOTION_PAGE_ID"
+  },
+  "news": {
+    "categories": ["AI", "technology", "economy"],
+    "count_per_category": 5
+  }
+}
