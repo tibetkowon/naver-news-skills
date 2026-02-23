@@ -95,4 +95,127 @@ describe("fetchNews tool", () => {
       fetchNews({ count_per_category: 0 }, mockConfig)
     ).rejects.toThrow("between 1 and 100");
   });
+
+  it("truncates description longer than 200 chars", async () => {
+    const longDesc = "a".repeat(250);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 1,
+          start: 1,
+          display: 1,
+          items: [{ ...mockArticle, description: longDesc }],
+        }),
+      })
+    );
+
+    const result = await fetchNews({ categories: ["AI"] }, mockConfig);
+    const desc = result.results[0].articles[0].description;
+    expect(desc.length).toBeLessThanOrEqual(202); // 200 chars + "…"
+    expect(desc.endsWith("…")).toBe(true);
+  });
+
+  it("does not truncate description of 200 chars or less", async () => {
+    const shortDesc = "a".repeat(200);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 1,
+          start: 1,
+          display: 1,
+          items: [{ ...mockArticle, description: shortDesc }],
+        }),
+      })
+    );
+
+    const result = await fetchNews({ categories: ["AI"] }, mockConfig);
+    expect(result.results[0].articles[0].description).toBe(shortDesc);
+  });
+
+  it("shortens pubDate to YYYY-MM-DD format", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 1,
+          start: 1,
+          display: 1,
+          items: [mockArticle],
+        }),
+      })
+    );
+
+    const result = await fetchNews({ categories: ["AI"] }, mockConfig);
+    expect(result.results[0].articles[0].pubDate).toBe("2026-02-23");
+  });
+
+  it("omits originallink when identical to link", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 1,
+          start: 1,
+          display: 1,
+          items: [{ ...mockArticle, originallink: mockArticle.link }],
+        }),
+      })
+    );
+
+    const result = await fetchNews({ categories: ["AI"] }, mockConfig);
+    expect(result.results[0].articles[0].originallink).toBeUndefined();
+  });
+
+  it("keeps originallink when different from link", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 1,
+          start: 1,
+          display: 1,
+          items: [mockArticle], // originallink is "https://orig.com"
+        }),
+      })
+    );
+
+    const result = await fetchNews({ categories: ["AI"] }, mockConfig);
+    expect(result.results[0].articles[0].originallink).toBe("https://orig.com");
+  });
+
+  it("deduplicates articles with the same link across categories", async () => {
+    // Both categories return the same article link
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          lastBuildDate: "",
+          total: 1,
+          start: 1,
+          display: 1,
+          items: [mockArticle],
+        }),
+      })
+    );
+
+    // config has ["AI", "economy"] — both return same link
+    const result = await fetchNews({}, mockConfig);
+
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0].articles).toHaveLength(1); // first category keeps it
+    expect(result.results[1].articles).toHaveLength(0); // duplicate removed
+  });
 });

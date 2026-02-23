@@ -22,7 +22,7 @@ export interface AppConfig {
 export interface NaverArticle {
   title: string;
   link: string;
-  originallink: string;
+  originallink?: string; // omitted when identical to link (token reduction)
   description: string;
   pubDate: string;
 }

@@ -1,0 +1,1 @@
+{"version":3,"file":"naver-client.d.ts","sourceRoot":"","sources":["../src/naver-client.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,WAAW,EAAE,YAAY,EAAuB,MAAM,YAAY,CAAC;AAuB5E,qBAAa,WAAW;IACtB,OAAO,CAAC,MAAM,CAAc;gBAEhB,MAAM,EAAE,WAAW;IAIzB,UAAU,CACd,QAAQ,EAAE,MAAM,EAChB,KAAK,EAAE,MAAM,GACZ,OAAO,CAAC,YAAY,EAAE,CAAC;CAqD3B"}

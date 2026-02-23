@@ -1,17 +1,28 @@
-# SKILL.md — naver-news-skills MCP Server
+# SKILL.md — naver-news-skills CLI
 
-This document describes how to use the `naver-news-skills` MCP server as an AI agent.
+This document describes how to use the `naver-news-skills` CLI tools as an AI agent.
 
 ---
 
 ## Overview
 
-This MCP server exposes two tools that work together in a news summarization workflow:
+Two CLI scripts that handle all API calls, returning pre-processed, token-minimal JSON:
 
-1. **`fetch_news`** — Fetches news articles from the Naver Search API by category
-2. **`create_notion_page`** — Creates a Notion page with the provided content and returns its URL
+1. `node dist/cli/fetch-news.js` — Fetches news from Naver Search API
+2. `node dist/cli/create-notion-page.js` — Creates a Notion page with content
 
-You (the agent) are responsible for summarizing and editing the articles between these two steps. The tools handle all API communication, HTML stripping, and data formatting.
+You (the agent) are responsible for summarizing and editing the articles between these two steps.
+
+---
+
+## Setup (one-time)
+
+```bash
+npm install     # installs build tools (dev deps only — no runtime deps)
+npm run build   # compiles TypeScript → dist/
+```
+
+After this, only `node` is required to run the skills.
 
 ---
 
@@ -19,9 +30,9 @@ You (the agent) are responsible for summarizing and editing the articles between
 
 ```
 1. (Optional) Read config.json — verify or prompt user for missing credentials
-2. Call fetch_news(categories?, count_per_category?)
+2. node dist/cli/fetch-news.js [--categories "AI,경제"] [--count 5]
 3. Summarize and edit the returned articles  ← YOUR responsibility
-4. Call create_notion_page(title, content)
+4. echo "<summary>" | node dist/cli/create-notion-page.js --title "뉴스 요약 – 2026-02-23"
 5. Return the Notion page URL to the user
 ```
 
@@ -29,7 +40,7 @@ You (the agent) are responsible for summarizing and editing the articles between
 
 ## Configuration
 
-The server reads from `config.json` in the project root. If it is missing or incomplete, the server will throw an error before any tool runs.
+The scripts read from `config.json` in the project root.
 
 **Schema:**
 ```json
@@ -55,67 +66,58 @@ The server reads from `config.json` in the project root. If it is missing or inc
 
 ## Tool Reference
 
-### `fetch_news`
+### `node dist/cli/fetch-news.js`
 
-Fetches articles from the Naver Search API for one or more categories.
+Fetches articles from the Naver Search API. Pre-processes results to minimize tokens.
 
-**Input parameters** (all optional — defaults come from `config.json`):
+**Arguments** (all optional — defaults come from `config.json`):
 
-| Parameter | Type | Description |
-|---|---|---|
-| `categories` | `string[]` | Keywords to search. Overrides `news.categories` in config. |
-| `count_per_category` | `number` (1–100) | Articles per category. Overrides `news.count_per_category` in config. |
+| Argument | Description |
+|---|---|
+| `--categories "A,B,C"` | Comma-separated keywords. Overrides `news.categories` in config. |
+| `--count N` | Articles per category (1–100). Overrides `news.count_per_category` in config. |
 
-**Output:**
+**Output (stdout):** compact JSON
+
 ```json
-{
-  "results": [
-    {
-      "category": "AI",
-      "articles": [
-        {
-          "title": "Article title (HTML stripped)",
-          "link": "https://news.naver.com/...",
-          "originallink": "https://original-source.com/...",
-          "description": "Short description (HTML stripped)",
-          "pubDate": "Mon, 23 Feb 2026 10:00:00 +0900"
-        }
-      ]
-    }
-  ]
-}
+{"results":[{"category":"AI","articles":[{"title":"Article title","link":"https://news.naver.com/...","originallink":"https://original-source.com/...","description":"Short description (max 200 chars)…","pubDate":"2026-02-23"}]}]}
 ```
 
-**Notes:**
-- HTML tags and common HTML entities are stripped from `title` and `description`.
-- Results are sorted by recency (`sort=date`).
-- Category strings containing only special characters (e.g. `"!!!"`) are rejected with an error.
+**Token reduction applied automatically:**
+- `description` truncated to 200 characters
+- `pubDate` shortened to `YYYY-MM-DD`
+- `originallink` omitted when identical to `link`
+- Duplicate articles (same `link`) removed across categories
 
-**Example call:**
+**On error (stderr):**
 ```json
-{
-  "tool": "fetch_news",
-  "input": {
-    "categories": ["AI", "economy"],
-    "count_per_category": 5
-  }
-}
+{"error":"error message here"}
+```
+
+**Examples:**
+```bash
+# Use config defaults
+node dist/cli/fetch-news.js
+
+# Override categories and count
+node dist/cli/fetch-news.js --categories "AI,기술,경제" --count 5
 ```
 
 ---
 
-### `create_notion_page`
+### `node dist/cli/create-notion-page.js`
 
-Creates a new Notion page under the configured parent page and writes the provided content as blocks.
+Creates a new Notion page and writes the provided content as blocks. Reads content from **stdin**.
 
-**Input parameters** (all required):
+**Arguments:**
 
-| Parameter | Type | Description |
+| Argument | Required | Description |
 |---|---|---|
-| `title` | `string` | Page title. Whitespace is trimmed. Cannot be empty. |
-| `content` | `string` | Page body. Supports Markdown-style headings and lists (see below). Cannot be empty. |
+| `--title "..."` | Yes | Page title. Whitespace is trimmed. |
 
-**Supported Markdown syntax in `content`:**
+**Input (stdin):** page body as Markdown-style text
+
+**Supported Markdown syntax:**
 
 | Syntax | Notion Block Type |
 |---|---|
@@ -125,35 +127,31 @@ Creates a new Notion page under the configured parent page and writes the provid
 | `- item` or `* item` | `bulleted_list_item` |
 | Any other line | `paragraph` |
 
-**Output:**
+**Output (stdout):**
 ```json
-{
-  "page_url": "https://notion.so/...",
-  "page_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-}
+{"page_url":"https://notion.so/...","page_id":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
 ```
 
-**Notes:**
-- Content is automatically split into chunks of 100 blocks to comply with the Notion API limit.
-- Rich text elements are split at 2000 characters each (Notion limit).
-- The created page is a child of `notion.parent_page_id` in config.
-
-**Example call:**
+**On error (stderr):**
 ```json
-{
-  "tool": "create_notion_page",
-  "input": {
-    "title": "News Summary – 2026-02-23",
-    "content": "# AI\n\n- Article 1: ...\n- Article 2: ...\n\n# Economy\n\n- Article 1: ..."
-  }
-}
+{"error":"error message here"}
+```
+
+**Examples:**
+```bash
+# Pipe content from a variable
+echo "# AI\n\n- Article 1 summary\n- Article 2 summary" | \
+  node dist/cli/create-notion-page.js --title "뉴스 요약 – 2026-02-23"
+
+# Pipe from a file
+cat summary.md | node dist/cli/create-notion-page.js --title "뉴스 요약"
 ```
 
 ---
 
 ## Recommended Content Format
 
-When writing the `content` argument for `create_notion_page`, structure it like this for readability:
+When building the content for `create-notion-page`, structure it like this:
 
 ```
 # {Category Name}
@@ -174,8 +172,6 @@ Published: {pubDate}
 
 ## Error Handling
 
-If a tool returns an error, interpret it as follows and take appropriate action:
-
 | Error message contains | Meaning | Action |
 |---|---|---|
 | `client_id` / `client_secret` / `api_key` / `parent_page_id` | Missing config field | Prompt user for the value, update `config.json`, retry |
@@ -193,15 +189,12 @@ If a tool returns an error, interpret it as follows and take appropriate action:
 User: "오늘 AI랑 경제 뉴스 요약해서 Notion에 정리해줘"
 
 Agent:
-  1. Call fetch_news({ categories: ["AI", "경제"], count_per_category: 5 })
-  2. Receive 10 articles (5 per category)
-  3. Summarize each article in 2–3 sentences (in Korean, matching user's language)
-  4. Build content string with Markdown structure
-  5. Call create_notion_page({
-       title: "뉴스 요약 – 2026-02-23",
-       content: "# AI\n\n## 제목1\n요약...\n..."
-     })
-  6. Receive { page_url: "https://notion.so/...", page_id: "..." }
+  1. Run: node dist/cli/fetch-news.js --categories "AI,경제" --count 5
+  2. Receive compact JSON with 10 articles (5 per category, pre-processed)
+  3. Summarize each article in 2–3 sentences (in Korean)
+  4. Build Markdown content string
+  5. Run: echo "<content>" | node dist/cli/create-notion-page.js --title "뉴스 요약 – 2026-02-23"
+  6. Receive { "page_url": "https://notion.so/...", "page_id": "..." }
   7. Reply: "요약이 완료됐습니다. Notion 페이지에서 확인하세요: https://notion.so/..."
 ```
 
@@ -211,8 +204,10 @@ Agent:
 
 | File | Purpose |
 |---|---|
-| `src/tools/fetch-news.ts` | `fetch_news` tool logic |
-| `src/tools/create-notion-page.ts` | `create_notion_page` tool logic |
+| `src/cli/fetch-news.ts` | CLI entry point for fetch_news |
+| `src/cli/create-notion-page.ts` | CLI entry point for create_notion_page |
+| `src/tools/fetch-news.ts` | fetch_news logic + token reduction |
+| `src/tools/create-notion-page.ts` | create_notion_page logic |
 | `src/naver-client.ts` | Naver Search API HTTP client |
 | `src/notion-client.ts` | Notion API HTTP client |
 | `src/config.ts` | Config loading and validation |
