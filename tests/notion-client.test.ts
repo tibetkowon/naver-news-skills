@@ -80,6 +80,24 @@ describe("NotionClient", () => {
     expect(fetchMock.mock.calls.length).toBe(3);
   });
 
+  it("recognizes '---' as a divider block", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "p3", url: "https://notion.so/p3" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new NotionClient(mockConfig);
+    await client.appendBlocks("page-id", "Some text\n---\nOther text");
+
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(options.body as string);
+    const dividerBlock = body.children[1];
+
+    expect(dividerBlock.type).toBe("divider");
+    expect(dividerBlock.divider).toEqual({});
+  });
+
   it("throws on 401 authentication error", async () => {
     vi.stubGlobal(
       "fetch",

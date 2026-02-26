@@ -28,7 +28,13 @@ function contentToBlocks(content: string): NotionBlock[] {
   const blocks: NotionBlock[] = [];
 
   for (const line of lines) {
-    if (line.startsWith("# ")) {
+    if (line === "---") {
+      blocks.push({
+        object: "block",
+        type: "divider",
+        divider: {},
+      });
+    } else if (line.startsWith("# ")) {
       blocks.push({
         object: "block",
         type: "heading_1",

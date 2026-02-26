@@ -63,6 +63,9 @@ function validateConfig(raw: unknown): AppConfig {
     );
   }
 
+  const only_korean =
+    typeof news["only_korean"] === "boolean" ? news["only_korean"] : false;
+
   return {
     naver: {
       client_id: naver["client_id"] as string,
@@ -75,6 +78,7 @@ function validateConfig(raw: unknown): AppConfig {
     news: {
       categories: news["categories"] as string[],
       count_per_category: news["count_per_category"] as number,
+      only_korean,
     },
   };
 }

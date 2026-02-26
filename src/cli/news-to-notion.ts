@@ -5,12 +5,14 @@ function parseArgs(): {
   categories?: string[];
   count_per_category?: number;
   title?: string;
+  only_korean?: boolean;
 } {
   const args = process.argv.slice(2);
   const result: {
     categories?: string[];
     count_per_category?: number;
     title?: string;
+    only_korean?: boolean;
   } = {};
 
   for (let i = 0; i < args.length; i++) {
@@ -27,6 +29,8 @@ function parseArgs(): {
     } else if (args[i] === "--title" && args[i + 1]) {
       result.title = args[i + 1];
       i++;
+    } else if (args[i] === "--only-korean") {
+      result.only_korean = true;
     }
   }
 

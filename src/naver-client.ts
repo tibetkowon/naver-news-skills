@@ -31,7 +31,8 @@ export class NaverClient {
   async searchNews(
     category: string,
     count: number,
-    start: number = 1
+    start: number = 1,
+    onlyKorean: boolean = false
   ): Promise<{ meta: NaverSearchMeta; articles: NaverArticle[] }> {
     const safeCategory = sanitizeCategory(category);
     if (!safeCategory) {
@@ -78,6 +79,23 @@ export class NaverClient {
     }
 
     const data = (await response.json()) as NaverSearchResponse;
+    const items = data.items.map((item) => ({
+      title: stripHtml(item.title),
+      link: item.link,
+      originallink: item.originallink,
+      description: stripHtml(item.description),
+      pubDate: item.pubDate,
+    }));
+
+    const filteredArticles = onlyKorean
+      ? items.filter((article) => {
+          const koreanRegex = /[가-힣ㄱ-ㅎㅏ-ㅣ]/;
+          return (
+            koreanRegex.test(article.title) ||
+            koreanRegex.test(article.description)
+          );
+        })
+      : items;
 
     return {
       meta: {
@@ -86,13 +104,7 @@ export class NaverClient {
         start: data.start,
         display: data.display,
       },
-      articles: data.items.map((item) => ({
-        title: stripHtml(item.title),
-        link: item.link,
-        originallink: item.originallink,
-        description: stripHtml(item.description),
-        pubDate: item.pubDate,
-      })),
+      articles: filteredArticles.slice(0, count),
     };
   }
 }

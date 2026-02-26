@@ -11,6 +11,7 @@ export interface NotionConfig {
 export interface NewsConfig {
   categories: string[];
   count_per_category: number;
+  only_korean?: boolean;
 }
 
 export interface AppConfig {
@@ -51,6 +52,7 @@ export interface CategoryResult {
 export interface FetchNewsInput {
   categories?: string[];
   count_per_category?: number;
+  only_korean?: boolean;
 }
 
 export interface FetchNewsOutput {
@@ -71,6 +73,7 @@ export interface CreateNotionPageOutput {
 export interface NewsToNotionInput {
   categories?: string[];
   count_per_category?: number;
+  only_korean?: boolean;
   title?: string;
   template?: string;
 }

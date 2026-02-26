@@ -194,4 +194,34 @@ describe("NaverClient", () => {
       "Invalid category"
     );
   });
+
+  it("filters out non-Korean articles when onlyKorean is true", async () => {
+    const mixedItems = [
+      {
+        title: "Korean News 한국 뉴스",
+        link: "https://example.com/ko",
+        originallink: "https://orig.com/ko",
+        description: "한국어 설명",
+        pubDate: "Mon, 23 Feb 2026 10:00:00 +0900",
+      },
+      {
+        title: "English News only",
+        link: "https://example.com/en",
+        originallink: "https://orig.com/en",
+        description: "English description only",
+        pubDate: "Mon, 23 Feb 2026 10:00:00 +0900",
+      },
+    ];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(makeApiResponse(mixedItems))
+    );
+
+    const client = new NaverClient(mockConfig);
+    const { articles } = await client.searchNews("AI", 10, 1, true);
+
+    expect(articles).toHaveLength(1);
+    expect(articles[0].title).toContain("한국 뉴스");
+  });
 });

@@ -12,7 +12,8 @@ async function fetchUniqueArticles(
   client: NaverClient,
   category: string,
   count: number,
-  seenLinks: Set<string>
+  seenLinks: Set<string>,
+  onlyKorean: boolean = false
 ): Promise<{ meta: NaverSearchMeta; articles: NaverArticle[] }> {
   const unique: NaverArticle[] = [];
   let start = 1;
@@ -20,7 +21,12 @@ async function fetchUniqueArticles(
 
   while (unique.length < count) {
     const batchSize = Math.min(100, count);
-    const { meta, articles } = await client.searchNews(category, batchSize, start);
+    const { meta, articles } = await client.searchNews(
+      category,
+      batchSize,
+      start,
+      onlyKorean
+    );
     lastMeta = meta;
 
     for (const article of articles) {
@@ -30,7 +36,7 @@ async function fetchUniqueArticles(
       }
     }
 
-    // No more articles available
+    // No more articles available or reached limit
     if (articles.length < batchSize) break;
     start += batchSize;
     if (start > 1000) break;
@@ -45,6 +51,7 @@ export async function fetchNews(
 ): Promise<FetchNewsOutput> {
   const categories = input.categories ?? config.news.categories;
   const count = input.count_per_category ?? config.news.count_per_category;
+  const only_korean = input.only_korean ?? config.news.only_korean ?? false;
 
   if (!Array.isArray(categories) || categories.length === 0) {
     throw new Error("categories must be a non-empty array");
@@ -62,7 +69,8 @@ export async function fetchNews(
       client,
       category,
       count,
-      seenLinks
+      seenLinks,
+      only_korean
     );
     results.push({ category, meta, articles });
   }

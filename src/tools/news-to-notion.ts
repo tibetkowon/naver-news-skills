@@ -19,6 +19,7 @@ export async function newsToNotion(
     {
       categories: input.categories,
       count_per_category: input.count_per_category,
+      only_korean: input.only_korean,
     },
     config
   );
