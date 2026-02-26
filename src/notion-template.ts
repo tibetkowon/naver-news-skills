@@ -49,21 +49,9 @@ function getCategoryEmoji(category: string): string {
   return "📰";
 }
 
-function formatDate(pubDate: string): string {
-  try {
-    const date = new Date(pubDate);
-    if (isNaN(date.getTime())) return pubDate;
-
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    const hh = String(date.getHours()).padStart(2, "0");
-    const mm = String(date.getMinutes()).padStart(2, "0");
-
-    return `${y}-${m}-${d} ${hh}:${mm}`;
-  } catch {
-    return pubDate;
-  }
+function escapeMarkdown(text: string): string {
+  // Escape square brackets to avoid breaking markdown link syntax
+  return text.replace(/\[/g, "\\[").replace(/\]/g, "\\]");
 }
 
 function defaultTemplate(categories: CategoryResult[]): string {
@@ -75,19 +63,14 @@ function defaultTemplate(categories: CategoryResult[]): string {
     parts.push("");
 
     for (const article of articles) {
-      // Use Markdown link syntax for title hyperlink
-      parts.push(`### [${article.title}](${article.link})`);
-      parts.push(`📅 ${formatDate(article.pubDate)}`);
+      // Use Markdown link syntax for title hyperlink, escaping inner brackets
+      const safeTitle = escapeMarkdown(article.title);
+      parts.push(`### [${safeTitle}](${article.link})`);
       
       if (article.description) {
         parts.push(article.description);
-        parts.push("");
       }
 
-      parts.push(`- 출처: ${article.link}`);
-      if (article.originallink && article.originallink !== article.link) {
-        parts.push(`- 원본: ${article.originallink}`);
-      }
       parts.push("");
       parts.push("---");
       parts.push("");

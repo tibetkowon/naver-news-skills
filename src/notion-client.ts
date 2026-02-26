@@ -16,14 +16,16 @@ interface NotionBlock {
 
 function buildRichText(text: string): NotionRichText[] {
   // Support [label](url) and raw https?:// urls
-  const combinedRegex = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\))|(https?:\/\/[^\s]+)/g;
+  // Improved regex to handle labels containing brackets by using greedy matching for the label part
+  const combinedRegex = /(\[.+?\]\(https?:\/\/[^\s)]+\))|(https?:\/\/[^\s]+)/g;
   const parts = text.split(combinedRegex);
   const richText: any[] = [];
 
   for (const part of parts) {
     if (!part) continue;
 
-    const mdLinkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+    // Try to match [label](url) - specifically look for the last ] before (http
+    const mdLinkMatch = part.match(/^\[(.+)\]\((https?:\/\/[^\s)]+)\)$/);
     if (mdLinkMatch) {
       const [, label, url] = mdLinkMatch;
       richText.push({
