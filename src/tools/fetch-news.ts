@@ -20,7 +20,9 @@ async function fetchUniqueArticles(
   let lastMeta: NaverSearchMeta | undefined;
 
   while (unique.length < count) {
-    const batchSize = Math.min(100, count);
+    // When filtering by language, we want to fetch as many as possible (up to 100) 
+    // to find enough Korean articles in each API call.
+    const batchSize = onlyKorean ? 100 : Math.min(100, count);
     const { meta, articles } = await client.searchNews(
       category,
       batchSize,
@@ -28,6 +30,8 @@ async function fetchUniqueArticles(
       onlyKorean
     );
     lastMeta = meta;
+
+    if (articles.length === 0) break;
 
     for (const article of articles) {
       if (!seenLinks.has(article.link) && unique.length < count) {
@@ -37,8 +41,10 @@ async function fetchUniqueArticles(
     }
 
     // No more articles available or reached limit
-    if (articles.length < batchSize) break;
-    start += batchSize;
+    // Note: client.searchNews returns up to batchSize items AFTER filtering.
+    // If it returns fewer than batchSize, it means there are no more matches in that 100-item block.
+    // But we need to keep going if we haven't reached the end of the total search (1000 items).
+    start += 100; // Always jump by 100 to get the next page of results
     if (start > 1000) break;
   }
 

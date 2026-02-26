@@ -15,15 +15,26 @@ interface NotionBlock {
 }
 
 function buildRichText(text: string): NotionRichText[] {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
+  // Support [label](url) and raw https?:// urls
+  const combinedRegex = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\))|(https?:\/\/[^\s]+)/g;
+  const parts = text.split(combinedRegex);
   const richText: any[] = [];
 
   for (const part of parts) {
     if (!part) continue;
 
-    if (part.match(urlRegex)) {
-      // It's a URL
+    const mdLinkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+    if (mdLinkMatch) {
+      const [, label, url] = mdLinkMatch;
+      richText.push({
+        type: "text",
+        text: {
+          content: label.slice(0, 2000),
+          link: { url: url.slice(0, 2000) },
+        },
+      });
+    } else if (part.match(/^https?:\/\/[^\s]+$/)) {
+      // It's a raw URL
       richText.push({
         type: "text",
         text: {
