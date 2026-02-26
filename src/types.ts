@@ -22,7 +22,7 @@ export interface AppConfig {
 export interface NaverArticle {
   title: string;
   link: string;
-  originallink?: string; // omitted when identical to link (token reduction)
+  originallink?: string;
   description: string;
   pubDate: string;
 }
@@ -35,8 +35,16 @@ export interface NaverSearchResponse {
   items: NaverArticle[];
 }
 
+export interface NaverSearchMeta {
+  lastBuildDate: string;
+  total: number;
+  start: number;
+  display: number;
+}
+
 export interface CategoryResult {
   category: string;
+  meta: NaverSearchMeta;
   articles: NaverArticle[];
 }
 
@@ -51,7 +59,8 @@ export interface FetchNewsOutput {
 
 export interface CreateNotionPageInput {
   title: string;
-  content: string;
+  categories: CategoryResult[];
+  template?: string;
 }
 
 export interface CreateNotionPageOutput {

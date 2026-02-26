@@ -1,50 +1,42 @@
 import { NaverClient } from "../naver-client.js";
 import {
   AppConfig,
+  CategoryResult,
   FetchNewsInput,
   FetchNewsOutput,
   NaverArticle,
+  NaverSearchMeta,
 } from "../types.js";
 
-const DESC_MAX_LEN = 200;
+async function fetchUniqueArticles(
+  client: NaverClient,
+  category: string,
+  count: number,
+  seenLinks: Set<string>
+): Promise<{ meta: NaverSearchMeta; articles: NaverArticle[] }> {
+  const unique: NaverArticle[] = [];
+  let start = 1;
+  let lastMeta: NaverSearchMeta | undefined;
 
-function truncateDescription(desc: string): string {
-  if (desc.length <= DESC_MAX_LEN) return desc;
-  return desc.slice(0, DESC_MAX_LEN) + "…";
-}
+  while (unique.length < count) {
+    const batchSize = Math.min(100, count);
+    const { meta, articles } = await client.searchNews(category, batchSize, start);
+    lastMeta = meta;
 
-function shortDate(pubDate: string): string {
-  const d = new Date(pubDate);
-  if (isNaN(d.getTime())) return pubDate;
-  return d.toISOString().slice(0, 10); // "2026-02-23"
-}
+    for (const article of articles) {
+      if (!seenLinks.has(article.link) && unique.length < count) {
+        seenLinks.add(article.link);
+        unique.push(article);
+      }
+    }
 
-function processArticle(article: NaverArticle): NaverArticle {
-  const processed: NaverArticle = {
-    title: article.title,
-    link: article.link,
-    description: truncateDescription(article.description),
-    pubDate: shortDate(article.pubDate),
-  };
-  // Only include originallink when it differs from link (saves tokens)
-  if (article.originallink && article.originallink !== article.link) {
-    processed.originallink = article.originallink;
+    // No more articles available
+    if (articles.length < batchSize) break;
+    start += batchSize;
+    if (start > 1000) break;
   }
-  return processed;
-}
 
-function deduplicateResults(
-  results: FetchNewsOutput["results"]
-): FetchNewsOutput["results"] {
-  const seen = new Set<string>();
-  return results.map((r) => ({
-    ...r,
-    articles: r.articles.filter((a) => {
-      if (seen.has(a.link)) return false;
-      seen.add(a.link);
-      return true;
-    }),
-  }));
+  return { meta: lastMeta!, articles: unique };
 }
 
 export async function fetchNews(
@@ -62,12 +54,18 @@ export async function fetchNews(
   }
 
   const client = new NaverClient(config.naver);
-  const rawResults: FetchNewsOutput["results"] = [];
+  const results: CategoryResult[] = [];
+  const seenLinks = new Set<string>();
 
   for (const category of categories) {
-    const articles = await client.searchNews(category, count);
-    rawResults.push({ category, articles: articles.map(processArticle) });
+    const { meta, articles } = await fetchUniqueArticles(
+      client,
+      category,
+      count,
+      seenLinks
+    );
+    results.push({ category, meta, articles });
   }
 
-  return { results: deduplicateResults(rawResults) };
+  return { results };
 }

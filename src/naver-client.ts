@@ -1,4 +1,4 @@
-import { NaverConfig, NaverArticle, NaverSearchResponse } from "./types.js";
+import { NaverConfig, NaverArticle, NaverSearchMeta, NaverSearchResponse } from "./types.js";
 
 const NAVER_NEWS_URL = "https://openapi.naver.com/v1/search/news.json";
 
@@ -30,17 +30,20 @@ export class NaverClient {
 
   async searchNews(
     category: string,
-    count: number
-  ): Promise<NaverArticle[]> {
+    count: number,
+    start: number = 1
+  ): Promise<{ meta: NaverSearchMeta; articles: NaverArticle[] }> {
     const safeCategory = sanitizeCategory(category);
     if (!safeCategory) {
       throw new Error(`Invalid category: "${category}"`);
     }
 
     const display = Math.min(Math.max(1, count), 100);
+    const safeStart = Math.max(1, Math.min(1000, start));
     const url = new URL(NAVER_NEWS_URL);
     url.searchParams.set("query", safeCategory);
     url.searchParams.set("display", String(display));
+    url.searchParams.set("start", String(safeStart));
     url.searchParams.set("sort", "date");
 
     let response: Response;
@@ -76,12 +79,20 @@ export class NaverClient {
 
     const data = (await response.json()) as NaverSearchResponse;
 
-    return data.items.map((item) => ({
-      title: stripHtml(item.title),
-      link: item.link,
-      originallink: item.originallink,
-      description: stripHtml(item.description),
-      pubDate: item.pubDate,
-    }));
+    return {
+      meta: {
+        lastBuildDate: data.lastBuildDate,
+        total: data.total,
+        start: data.start,
+        display: data.display,
+      },
+      articles: data.items.map((item) => ({
+        title: stripHtml(item.title),
+        link: item.link,
+        originallink: item.originallink,
+        description: stripHtml(item.description),
+        pubDate: item.pubDate,
+      })),
+    };
   }
 }

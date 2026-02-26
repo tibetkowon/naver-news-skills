@@ -6,42 +6,77 @@ const mockConfig = {
   client_secret: "test-client-secret",
 };
 
+function makeApiResponse(items = [mockItem], extra = {}) {
+  return {
+    ok: true,
+    json: async () => ({
+      lastBuildDate: "Mon, 23 Feb 2026 10:00:00 +0900",
+      total: 100,
+      start: 1,
+      display: items.length,
+      items,
+      ...extra,
+    }),
+  };
+}
+
+const mockItem = {
+  title: "Test Title",
+  link: "https://example.com/1",
+  originallink: "https://orig.com/1",
+  description: "Test description",
+  pubDate: "Mon, 23 Feb 2026 10:00:00 +0900",
+};
+
 describe("NaverClient", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
   it("returns articles with HTML stripped from title and description", async () => {
-    const mockItems = [
-      {
-        title: "<b>AI</b> 뉴스",
-        link: "https://example.com/1",
-        originallink: "https://orig.com/1",
-        description: "설명 &amp; <em>강조</em>",
-        pubDate: "Mon, 23 Feb 2026 10:00:00 +0900",
-      },
-    ];
+    const htmlItem = {
+      title: "<b>AI</b> 뉴스",
+      link: "https://example.com/1",
+      originallink: "https://orig.com/1",
+      description: "설명 &amp; <em>강조</em>",
+      pubDate: "Mon, 23 Feb 2026 10:00:00 +0900",
+    };
 
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(makeApiResponse([htmlItem]))
+    );
+
+    const client = new NaverClient(mockConfig);
+    const { articles } = await client.searchNews("AI", 1);
+
+    expect(articles).toHaveLength(1);
+    expect(articles[0].title).toBe("AI 뉴스");
+    expect(articles[0].description).toBe("설명 & 강조");
+  });
+
+  it("returns meta with lastBuildDate, total, start, display", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           lastBuildDate: "Mon, 23 Feb 2026 10:00:00 +0900",
-          total: 1,
+          total: 42,
           start: 1,
           display: 1,
-          items: mockItems,
+          items: [mockItem],
         }),
       })
     );
 
     const client = new NaverClient(mockConfig);
-    const articles = await client.searchNews("AI", 1);
+    const { meta } = await client.searchNews("AI", 1);
 
-    expect(articles).toHaveLength(1);
-    expect(articles[0].title).toBe("AI 뉴스");
-    expect(articles[0].description).toBe("설명 & 강조");
+    expect(meta.total).toBe(42);
+    expect(meta.lastBuildDate).toBe("Mon, 23 Feb 2026 10:00:00 +0900");
+    expect(meta.start).toBe(1);
+    expect(meta.display).toBe(1);
   });
 
   it("sends correct Naver API headers", async () => {
@@ -63,12 +98,33 @@ describe("NaverClient", () => {
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("query=technology");
     expect(url).toContain("display=5");
+    expect(url).toContain("start=1");
     expect((options.headers as Record<string, string>)["X-Naver-Client-Id"]).toBe(
       "test-client-id"
     );
     expect(
       (options.headers as Record<string, string>)["X-Naver-Client-Secret"]
     ).toBe("test-client-secret");
+  });
+
+  it("includes start parameter in URL", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        lastBuildDate: "",
+        total: 0,
+        start: 11,
+        display: 0,
+        items: [],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new NaverClient(mockConfig);
+    await client.searchNews("AI", 5, 11);
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain("start=11");
   });
 
   it("clamps display to 100 max", async () => {

@@ -1,19 +1,6 @@
 import { loadConfig } from "../config.js";
 import { createNotionPage } from "../tools/create-notion-page.js";
-
-function parseArgs(): { title?: string } {
-  const args = process.argv.slice(2);
-  const result: { title?: string } = {};
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--title" && args[i + 1]) {
-      result.title = args[i + 1];
-      i++;
-    }
-  }
-
-  return result;
-}
+import { CreateNotionPageInput } from "../types.js";
 
 async function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -27,20 +14,25 @@ async function readStdin(): Promise<string> {
   });
 }
 
-const { title } = parseArgs();
-if (!title) {
-  process.stderr.write(
-    JSON.stringify({ error: "--title is required" }) + "\n"
-  );
-  process.exit(1);
+async function main(): Promise<void> {
+  const raw = await readStdin();
+  let input: CreateNotionPageInput;
+  try {
+    input = JSON.parse(raw) as CreateNotionPageInput;
+  } catch {
+    process.stderr.write(
+      JSON.stringify({ error: "Invalid JSON input. Expected: { title, categories, template? }" }) + "\n"
+    );
+    process.exit(1);
+    return;
+  }
+
+  const config = loadConfig();
+  const result = await createNotionPage(input, config);
+  process.stdout.write(JSON.stringify(result) + "\n");
 }
 
-try {
-  const content = await readStdin();
-  const config = loadConfig();
-  const result = await createNotionPage({ title, content }, config);
-  process.stdout.write(JSON.stringify(result) + "\n");
-} catch (err) {
-  process.stderr.write(JSON.stringify({ error: (err as Error).message }) + "\n");
+main().catch((err: Error) => {
+  process.stderr.write(JSON.stringify({ error: err.message }) + "\n");
   process.exit(1);
-}
+});

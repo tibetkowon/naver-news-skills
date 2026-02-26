@@ -1,13 +1,14 @@
+import { applyTemplate } from "../notion-template.js";
 import { NotionClient } from "../notion-client.js";
 export async function createNotionPage(input, config) {
-    const { title, content } = input;
-    if (typeof title !== "string" || !title.trim()) {
+    if (typeof input.title !== "string" || !input.title.trim()) {
         throw new Error("title must be a non-empty string");
     }
-    if (typeof content !== "string" || !content.trim()) {
-        throw new Error("content must be a non-empty string");
+    if (!Array.isArray(input.categories) || input.categories.length === 0) {
+        throw new Error("categories must be a non-empty array");
     }
+    const content = applyTemplate(input.categories, input.template);
     const client = new NotionClient(config.notion);
-    return client.createPageWithContent(title.trim(), content);
+    return client.createPageWithContent(input.title.trim(), content);
 }
 //# sourceMappingURL=create-notion-page.js.map

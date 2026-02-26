@@ -1,40 +1,26 @@
 import { NaverClient } from "../naver-client.js";
-const DESC_MAX_LEN = 200;
-function truncateDescription(desc) {
-    if (desc.length <= DESC_MAX_LEN)
-        return desc;
-    return desc.slice(0, DESC_MAX_LEN) + "…";
-}
-function shortDate(pubDate) {
-    const d = new Date(pubDate);
-    if (isNaN(d.getTime()))
-        return pubDate;
-    return d.toISOString().slice(0, 10); // "2026-02-23"
-}
-function processArticle(article) {
-    const processed = {
-        title: article.title,
-        link: article.link,
-        description: truncateDescription(article.description),
-        pubDate: shortDate(article.pubDate),
-    };
-    // Only include originallink when it differs from link (saves tokens)
-    if (article.originallink && article.originallink !== article.link) {
-        processed.originallink = article.originallink;
+async function fetchUniqueArticles(client, category, count, seenLinks) {
+    const unique = [];
+    let start = 1;
+    let lastMeta;
+    while (unique.length < count) {
+        const batchSize = Math.min(100, count);
+        const { meta, articles } = await client.searchNews(category, batchSize, start);
+        lastMeta = meta;
+        for (const article of articles) {
+            if (!seenLinks.has(article.link) && unique.length < count) {
+                seenLinks.add(article.link);
+                unique.push(article);
+            }
+        }
+        // No more articles available
+        if (articles.length < batchSize)
+            break;
+        start += batchSize;
+        if (start > 1000)
+            break;
     }
-    return processed;
-}
-function deduplicateResults(results) {
-    const seen = new Set();
-    return results.map((r) => ({
-        ...r,
-        articles: r.articles.filter((a) => {
-            if (seen.has(a.link))
-                return false;
-            seen.add(a.link);
-            return true;
-        }),
-    }));
+    return { meta: lastMeta, articles: unique };
 }
 export async function fetchNews(input, config) {
     const categories = input.categories ?? config.news.categories;
@@ -46,11 +32,12 @@ export async function fetchNews(input, config) {
         throw new Error("count_per_category must be between 1 and 100");
     }
     const client = new NaverClient(config.naver);
-    const rawResults = [];
+    const results = [];
+    const seenLinks = new Set();
     for (const category of categories) {
-        const articles = await client.searchNews(category, count);
-        rawResults.push({ category, articles: articles.map(processArticle) });
+        const { meta, articles } = await fetchUniqueArticles(client, category, count, seenLinks);
+        results.push({ category, meta, articles });
     }
-    return { results: deduplicateResults(rawResults) };
+    return { results };
 }
 //# sourceMappingURL=fetch-news.js.map
