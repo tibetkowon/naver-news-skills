@@ -13,14 +13,22 @@
     "only_korean": true,
     "whitelist_domains": [
       "yna.co.kr",
-      "khan.co.kr",
-      "hani.co.kr",
-      "donga.com",
       "chosun.com",
       "joongang.co.kr",
-      "hankyung.com",
+      "donga.com",
+      "khan.co.kr",
+      "hani.co.kr",
+      "hankookilbo.com",
       "mk.co.kr",
-      "sedaily.com"
+      "hankyung.com",
+      "sedaily.com",
+      "mt.co.kr",
+      "edaily.co.kr",
+      "kbs.co.kr",
+      "imbc.com",
+      "sbs.co.kr",
+      "ytn.co.kr",
+      "jtbc.co.kr"
     ],
     "blacklist_domains": []
   }
