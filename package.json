@@ -8,8 +8,7 @@
     "test": "vitest run",
     "lint": "eslint src tests --ext .ts",
     "typecheck": "tsc --noEmit",
-    "dev:fetch": "tsx src/cli/fetch-news.ts",
-    "dev:notion": "tsx src/cli/create-notion-page.ts"
+    "dev": "tsx src/cli/news-to-notion.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

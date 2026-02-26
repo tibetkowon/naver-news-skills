@@ -1,6 +1,6 @@
 # naver-news-skills
 
-네이버 뉴스를 검색해 Notion 페이지에 정리해주는 AI 스킬입니다.
+네이버 뉴스를 검색해 Notion 페이지에 자동으로 정리해주는 AI 스킬입니다.
 AI 에이전트(Claude 등)와 함께 사용하도록 설계되어 있습니다.
 
 ---
@@ -9,10 +9,8 @@ AI 에이전트(Claude 등)와 함께 사용하도록 설계되어 있습니다.
 
 ```
 사용자 → AI 에이전트
-            ├─ 1. 뉴스 검색      → fetch-news CLI 호출
-            ├─ 2. 기사 검토/선별  ← 에이전트 담당
-            ├─ 3. Notion 페이지 작성 → create-notion-page CLI 호출
-            └─ 4. 페이지 URL 반환  → 사용자에게 전달
+            └─ news-to-notion CLI 호출 (검색 + Notion 페이지 작성 원큐 처리)
+                → 페이지 URL 반환 → 사용자에게 전달
 ```
 
 ---
@@ -95,79 +93,37 @@ cp config.example.json config.json
 
 ## AI 에이전트와 함께 사용하기
 
-이 프로젝트의 주요 사용 방식입니다. Claude 같은 AI 에이전트에게 아래와 같이 요청하면 됩니다.
+Claude 같은 AI 에이전트에게 아래와 같이 요청하면 됩니다.
 
-**기본 사용 예:**
 ```
-"오늘 AI랑 경제 뉴스 요약해서 Notion에 정리해줘"
-```
-
-**카테고리 지정:**
-```
-"반도체, 부동산 뉴스 각각 3개씩 Notion에 정리해줘"
+"오늘 AI랑 경제 뉴스 Notion에 정리해줘"
+"반도체, 부동산 뉴스 각각 3개씩 Notion에 올려줘"
+"이번 주 기술 뉴스 5개 요약해서 Notion 페이지 만들어줘"
 ```
 
-에이전트는 `SKILL.md`를 읽고 CLI 도구를 직접 호출합니다. 별도 설정 없이 `config.json`의 값이 자동으로 사용됩니다.
+에이전트는 `SKILL.md`를 읽고 CLI 도구를 직접 호출합니다. `config.json`의 값이 기본값으로 자동 사용됩니다.
 
 ---
 
 ## 직접 CLI로 사용하기
 
-### 뉴스 검색
-
 ```bash
-# config.json 기본값 사용
-node dist/cli/fetch-news.js
+# config.json 기본값 사용 (카테고리, 수량 모두 config에서 읽음)
+node dist/cli/news-to-notion.js
 
 # 카테고리와 수량 지정
-node dist/cli/fetch-news.js --categories "AI,반도체" --count 3
+node dist/cli/news-to-notion.js --categories "AI,반도체,경제" --count 5
+
+# 페이지 제목 직접 지정
+node dist/cli/news-to-notion.js --categories "AI" --count 3 --title "AI 뉴스 – 2월 4주차"
 ```
 
-**출력 예시:**
+**출력:**
 ```json
-{
-  "results": [
-    {
-      "category": "AI",
-      "meta": { "total": 4520, "lastBuildDate": "...", "start": 1, "display": 3 },
-      "articles": [
-        {
-          "title": "GPT-5 출시 임박",
-          "link": "https://news.naver.com/...",
-          "originallink": "https://techcrunch.com/...",
-          "description": "OpenAI가 다음 달 GPT-5를 공개할 예정이라고...",
-          "pubDate": "Mon, 23 Feb 2026 10:00:00 +0900"
-        }
-      ]
-    }
-  ]
-}
+{"page_url":"https://notion.so/...","page_id":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
 ```
 
-### Notion 페이지 생성
-
-fetch-news 결과를 JSON으로 그대로 넘기거나, 직접 구성한 JSON을 stdin으로 전달합니다.
-
-```bash
-# fetch-news 결과를 파일에 저장했다가 넘기기
-node dist/cli/fetch-news.js --categories "AI" --count 3 > articles.json
-
-# articles.json에서 categories 배열을 꺼내 title과 함께 전달
-node -e "
-  const d = JSON.parse(require('fs').readFileSync('articles.json'));
-  process.stdout.write(JSON.stringify({ title: '뉴스 요약 – 2026-02-26', categories: d.results }));
-" | node dist/cli/create-notion-page.js
-```
-
-**출력 예시:**
-```json
-{
-  "page_url": "https://notion.so/뉴스-요약-2026-02-26-xxxxxxxx",
-  "page_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-}
-```
-
-생성된 Notion 페이지는 다음 형식으로 작성됩니다:
+**생성되는 Notion 페이지 형식:**
 
 ```
 ## AI
@@ -180,6 +136,11 @@ OpenAI가 다음 달 GPT-5를 공개할 예정이라고...
 - 날짜: Mon, 23 Feb 2026 10:00:00 +0900
 
 ---
+
+## 경제
+
+### 코스피 2,600 돌파
+...
 ```
 
 ---
@@ -192,7 +153,7 @@ npm test           # 전체 테스트 실행
 npm run typecheck  # 타입 검사만 실행
 
 # 빌드 없이 바로 실행 (개발용)
-npm run dev:fetch  -- --categories "AI" --count 3
+npm run dev -- --categories "AI" --count 3
 ```
 
 ---
@@ -203,12 +164,12 @@ npm run dev:fetch  -- --categories "AI" --count 3
 naver-news-skills/
 ├── src/
 │   ├── cli/
-│   │   ├── fetch-news.ts          # fetch-news CLI 진입점
-│   │   └── create-notion-page.ts  # create-notion-page CLI 진입점
+│   │   └── news-to-notion.ts      # CLI 진입점 (유일한 실행 파일)
 │   ├── tools/
-│   │   ├── fetch-news.ts          # 뉴스 검색 로직 (중복 제거 + 보충)
-│   │   └── create-notion-page.ts  # Notion 페이지 생성 로직
-│   ├── notion-template.ts         # 템플릿 관리 (기사 데이터 → Notion 블록)
+│   │   ├── news-to-notion.ts      # 검색 + 페이지 생성 오케스트레이터
+│   │   ├── fetch-news.ts          # 뉴스 검색 (중복 제거 + 자동 보충)
+│   │   └── create-notion-page.ts  # Notion 페이지 생성
+│   ├── notion-template.ts         # 기사 데이터 → Notion 블록 변환 템플릿
 │   ├── naver-client.ts            # 네이버 검색 API 클라이언트
 │   ├── notion-client.ts           # Notion API 클라이언트
 │   ├── config.ts                  # config.json 로딩 및 검증
@@ -228,7 +189,6 @@ naver-news-skills/
 | 오류 메시지 | 원인 | 해결 |
 |---|---|---|
 | `authentication failed` | API 키 오류 | `config.json`의 키 값 재확인 |
-| `rate limit exceeded` | API 호출 한도 초과 | 잠시 후 재시도. 네이버 기본 한도: 25,000회/일 |
+| `rate limit exceeded` | API 호출 한도 초과 | 잠시 후 재시도 (네이버 기본 한도: 25,000회/일) |
 | `not found` (Notion) | 잘못된 `parent_page_id` 또는 통합 미연결 | Notion 페이지에 통합이 연결되어 있는지 확인 |
 | `Invalid category` | 카테고리에 특수문자만 포함 | 한글/영문/숫자로 된 키워드 사용 |
-| `Invalid JSON input` | stdin JSON 형식 오류 | `{ title, categories }` 형식인지 확인 |

@@ -1,0 +1,19 @@
+import { fetchNews } from "./fetch-news.js";
+import { createNotionPage } from "./create-notion-page.js";
+function buildTitle(input) {
+    if (input.title?.trim())
+        return input.title.trim();
+    return `뉴스 요약 – ${new Date().toISOString().slice(0, 10)}`;
+}
+export async function newsToNotion(input, config) {
+    const { results } = await fetchNews({
+        categories: input.categories,
+        count_per_category: input.count_per_category,
+    }, config);
+    return createNotionPage({
+        title: buildTitle(input),
+        categories: results,
+        template: input.template,
+    }, config);
+}
+//# sourceMappingURL=news-to-notion.js.map

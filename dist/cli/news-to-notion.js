@@ -1,5 +1,5 @@
 import { loadConfig } from "../config.js";
-import { fetchNews } from "../tools/fetch-news.js";
+import { newsToNotion } from "../tools/news-to-notion.js";
 function parseArgs() {
     const args = process.argv.slice(2);
     const result = {};
@@ -17,17 +17,21 @@ function parseArgs() {
                 result.count_per_category = n;
             i++;
         }
+        else if (args[i] === "--title" && args[i + 1]) {
+            result.title = args[i + 1];
+            i++;
+        }
     }
     return result;
 }
 try {
     const config = loadConfig();
     const input = parseArgs();
-    const result = await fetchNews(input, config);
+    const result = await newsToNotion(input, config);
     process.stdout.write(JSON.stringify(result) + "\n");
 }
 catch (err) {
     process.stderr.write(JSON.stringify({ error: err.message }) + "\n");
     process.exit(1);
 }
-//# sourceMappingURL=fetch-news.js.map
+//# sourceMappingURL=news-to-notion.js.map
