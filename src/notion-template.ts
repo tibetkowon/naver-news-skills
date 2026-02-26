@@ -49,11 +49,6 @@ function getCategoryEmoji(category: string): string {
   return "📰";
 }
 
-function escapeMarkdown(text: string): string {
-  // Escape square brackets to avoid breaking markdown link syntax
-  return text.replace(/\[/g, "\\[").replace(/\]/g, "\\]");
-}
-
 function defaultTemplate(categories: CategoryResult[]): string {
   const parts: string[] = [];
 
@@ -63,9 +58,8 @@ function defaultTemplate(categories: CategoryResult[]): string {
     parts.push("");
 
     for (const article of articles) {
-      // Use Markdown link syntax for title hyperlink, escaping inner brackets
-      const safeTitle = escapeMarkdown(article.title);
-      parts.push(`### [${safeTitle}](${article.link})`);
+      // Use raw title without escaping. The notion-client will handle brackets correctly.
+      parts.push(`### [${article.title}](${article.link})`);
       
       if (article.description) {
         parts.push(article.description);

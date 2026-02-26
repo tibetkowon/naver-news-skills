@@ -16,16 +16,22 @@ interface NotionBlock {
 
 function buildRichText(text: string): NotionRichText[] {
   // Support [label](url) and raw https?:// urls
-  // Improved regex to handle labels containing brackets by using greedy matching for the label part
-  const combinedRegex = /(\[.+?\]\(https?:\/\/[^\s)]+\))|(https?:\/\/[^\s]+)/g;
-  const parts = text.split(combinedRegex);
+  // Regex explanation:
+  // \[ - opening bracket
+  // ( (?: [^\]] | \] (?! \() )+ ) - capture label: anything that isn't ] OR is ] NOT followed by (
+  // \] \( (https?:\/\/[^\s)]+) \) - closing bracket followed by (url)
+  const mdLinkRegex = /\[((?:[^\]]|\](?!\())+)\]\((https?:\/\/[^\s)]+)\)/g;
+  const rawUrlRegex = /https?:\/\/[^\s]+/g;
+  
+  // Combine for splitting, but we need to be careful. Let's use a simpler approach.
+  const parts = text.split(/(\[.+?\]\(https?:\/\/[^\s)]+\))/g);
   const richText: any[] = [];
 
   for (const part of parts) {
     if (!part) continue;
 
-    // Try to match [label](url) - specifically look for the last ] before (http
-    const mdLinkMatch = part.match(/^\[(.+)\]\((https?:\/\/[^\s)]+)\)$/);
+    // Try to match the link specifically
+    const mdLinkMatch = part.match(/^\[((?:[^\]]|\](?!\())+)\]\((https?:\/\/[^\s)]+)\)$/);
     if (mdLinkMatch) {
       const [, label, url] = mdLinkMatch;
       richText.push({
@@ -35,22 +41,27 @@ function buildRichText(text: string): NotionRichText[] {
           link: { url: url.slice(0, 2000) },
         },
       });
-    } else if (part.match(/^https?:\/\/[^\s]+$/)) {
-      // It's a raw URL
-      richText.push({
-        type: "text",
-        text: {
-          content: part.slice(0, 2000),
-          link: { url: part.slice(0, 2000) },
-        },
-      });
     } else {
-      // It's regular text, handle 2000-char chunks
-      for (let i = 0; i < part.length; i += 2000) {
-        richText.push({
-          type: "text",
-          text: { content: part.slice(i, i + 2000) },
-        });
+      // Handle raw URLs in the remaining text
+      const subParts = part.split(/(https?:\/\/[^\s]+)/g);
+      for (const subPart of subParts) {
+        if (!subPart) continue;
+        if (subPart.match(/^https?:\/\/[^\s]+$/)) {
+          richText.push({
+            type: "text",
+            text: {
+              content: subPart.slice(0, 2000),
+              link: { url: subPart.slice(0, 2000) },
+            },
+          });
+        } else {
+          for (let i = 0; i < subPart.length; i += 2000) {
+            richText.push({
+              type: "text",
+              text: { content: subPart.slice(i, i + 2000) },
+            });
+          }
+        }
       }
     }
   }
