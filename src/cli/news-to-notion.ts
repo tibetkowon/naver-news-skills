@@ -1,9 +1,17 @@
 import { loadConfig } from "../config.js";
-import { fetchNews } from "../tools/fetch-news.js";
+import { newsToNotion } from "../tools/news-to-notion.js";
 
-function parseArgs(): { categories?: string[]; count_per_category?: number } {
+function parseArgs(): {
+  categories?: string[];
+  count_per_category?: number;
+  title?: string;
+} {
   const args = process.argv.slice(2);
-  const result: { categories?: string[]; count_per_category?: number } = {};
+  const result: {
+    categories?: string[];
+    count_per_category?: number;
+    title?: string;
+  } = {};
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--categories" && args[i + 1]) {
@@ -16,6 +24,9 @@ function parseArgs(): { categories?: string[]; count_per_category?: number } {
       const n = parseInt(args[i + 1], 10);
       if (!isNaN(n)) result.count_per_category = n;
       i++;
+    } else if (args[i] === "--title" && args[i + 1]) {
+      result.title = args[i + 1];
+      i++;
     }
   }
 
@@ -25,9 +36,11 @@ function parseArgs(): { categories?: string[]; count_per_category?: number } {
 try {
   const config = loadConfig();
   const input = parseArgs();
-  const result = await fetchNews(input, config);
+  const result = await newsToNotion(input, config);
   process.stdout.write(JSON.stringify(result) + "\n");
 } catch (err) {
-  process.stderr.write(JSON.stringify({ error: (err as Error).message }) + "\n");
+  process.stderr.write(
+    JSON.stringify({ error: (err as Error).message }) + "\n"
+  );
   process.exit(1);
 }

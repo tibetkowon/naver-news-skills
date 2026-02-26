@@ -56,4 +56,14 @@ export interface CreateNotionPageOutput {
     page_url: string;
     page_id: string;
 }
+export interface NewsToNotionInput {
+    categories?: string[];
+    count_per_category?: number;
+    title?: string;
+    template?: string;
+}
+export interface NewsToNotionOutput {
+    page_url: string;
+    page_id: string;
+}
 //# sourceMappingURL=types.d.ts.map
