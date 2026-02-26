@@ -21,15 +21,17 @@ export class NaverClient {
     constructor(config) {
         this.config = config;
     }
-    async searchNews(category, count) {
+    async searchNews(category, count, start = 1) {
         const safeCategory = sanitizeCategory(category);
         if (!safeCategory) {
             throw new Error(`Invalid category: "${category}"`);
         }
         const display = Math.min(Math.max(1, count), 100);
+        const safeStart = Math.max(1, Math.min(1000, start));
         const url = new URL(NAVER_NEWS_URL);
         url.searchParams.set("query", safeCategory);
         url.searchParams.set("display", String(display));
+        url.searchParams.set("start", String(safeStart));
         url.searchParams.set("sort", "date");
         let response;
         try {
@@ -54,13 +56,21 @@ export class NaverClient {
             throw new Error(`Naver API error ${response.status}: ${body}`);
         }
         const data = (await response.json());
-        return data.items.map((item) => ({
-            title: stripHtml(item.title),
-            link: item.link,
-            originallink: item.originallink,
-            description: stripHtml(item.description),
-            pubDate: item.pubDate,
-        }));
+        return {
+            meta: {
+                lastBuildDate: data.lastBuildDate,
+                total: data.total,
+                start: data.start,
+                display: data.display,
+            },
+            articles: data.items.map((item) => ({
+                title: stripHtml(item.title),
+                link: item.link,
+                originallink: item.originallink,
+                description: stripHtml(item.description),
+                pubDate: item.pubDate,
+            })),
+        };
     }
 }
 //# sourceMappingURL=naver-client.js.map

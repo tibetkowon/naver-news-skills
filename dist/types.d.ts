@@ -29,8 +29,15 @@ export interface NaverSearchResponse {
     display: number;
     items: NaverArticle[];
 }
+export interface NaverSearchMeta {
+    lastBuildDate: string;
+    total: number;
+    start: number;
+    display: number;
+}
 export interface CategoryResult {
     category: string;
+    meta: NaverSearchMeta;
     articles: NaverArticle[];
 }
 export interface FetchNewsInput {
@@ -42,7 +49,8 @@ export interface FetchNewsOutput {
 }
 export interface CreateNotionPageInput {
     title: string;
-    content: string;
+    categories: CategoryResult[];
+    template?: string;
 }
 export interface CreateNotionPageOutput {
     page_url: string;
