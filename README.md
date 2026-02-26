@@ -49,6 +49,7 @@ node --version  # v18.x.x 이상이어야 함
 git clone <repository-url>
 cd naver-news-skills
 npm install
+npm run build
 ```
 
 ---
@@ -85,9 +86,10 @@ cp config.example.json config.json
 | `notion.api_key` | Notion 통합 토큰 (`secret_` 으로 시작) |
 | `notion.parent_page_id` | 뉴스 페이지를 만들 Notion 페이지 ID |
 | `news.categories` | 기본 검색 키워드 목록 |
-| `news.count_per_category` | 카테고리당 기사 수 (1–100) |
+| `news.only_korean` | 한국어 기사만 수집할지 여부 (기본값: `true`) |
 
 > `config.json`은 `.gitignore`에 포함되어 있어 실수로 커밋되지 않습니다.
+> 생성된 Notion 페이지의 링크는 클릭 가능한 하이퍼링크로 자동 변환됩니다.
 
 ---
 
@@ -175,7 +177,7 @@ naver-news-skills/
 │   ├── config.ts                  # config.json 로딩 및 검증
 │   └── types.ts                   # TypeScript 타입 정의
 ├── tests/                         # 테스트 파일
-├── dist/                          # 빌드 결과물 (pre-built)
+├── dist/                          # 빌드 결과물
 ├── config.example.json            # 설정 파일 템플릿
 ├── config.json                    # 실제 설정 (git 제외)
 ├── SKILL.md                       # AI 에이전트용 사용 가이드

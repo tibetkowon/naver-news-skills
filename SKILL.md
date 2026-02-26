@@ -29,7 +29,7 @@ node dist/cli/news-to-notion.js [--categories "AI,경제"] [--count 5] [--title 
 ## Requirements
 
 - Node.js >= 18
-- `dist/` is pre-built and committed — no build step needed
+- `dist/` must be built using `npm run build`
 - `config.json` must exist in the project root with valid credentials
 
 ---
@@ -38,8 +38,9 @@ node dist/cli/news-to-notion.js [--categories "AI,경제"] [--count 5] [--title 
 
 ```
 1. Read config.json — if missing fields, prompt user and save before proceeding
-2. Run: node dist/cli/news-to-notion.js [args]
-3. Return the page_url to the user
+2. Build the project (if dist/ is missing): npm run build
+3. Run: node dist/cli/news-to-notion.js [args]
+4. Return the page_url to the user
 ```
 
 ---
@@ -77,6 +78,7 @@ All arguments are optional. Defaults come from `config.json`.
 |---|---|
 | `--categories "A,B,C"` | Comma-separated search keywords. Overrides `news.categories`. |
 | `--count N` | Articles per category (1–100). Overrides `news.count_per_category`. |
+| `--only-korean` | If provided, filters to show only articles containing Korean characters (default: true). |
 | `--title "..."` | Notion page title. Auto-generated as `뉴스 요약 – YYYY-MM-DD` if omitted. |
 
 **Output (stdout):**

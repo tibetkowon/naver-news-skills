@@ -64,7 +64,7 @@ function validateConfig(raw: unknown): AppConfig {
   }
 
   const only_korean =
-    typeof news["only_korean"] === "boolean" ? news["only_korean"] : false;
+    typeof news["only_korean"] === "boolean" ? news["only_korean"] : true;
 
   return {
     naver: {

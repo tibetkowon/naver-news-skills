@@ -15,12 +15,34 @@ interface NotionBlock {
 }
 
 function buildRichText(text: string): NotionRichText[] {
-  // Notion has a 2000-char limit per rich_text element
-  const chunks: NotionRichText[] = [];
-  for (let i = 0; i < text.length; i += 2000) {
-    chunks.push({ type: "text", text: { content: text.slice(i, i + 2000) } });
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  const richText: any[] = [];
+
+  for (const part of parts) {
+    if (!part) continue;
+
+    if (part.match(urlRegex)) {
+      // It's a URL
+      richText.push({
+        type: "text",
+        text: {
+          content: part.slice(0, 2000),
+          link: { url: part.slice(0, 2000) },
+        },
+      });
+    } else {
+      // It's regular text, handle 2000-char chunks
+      for (let i = 0; i < part.length; i += 2000) {
+        richText.push({
+          type: "text",
+          text: { content: part.slice(i, i + 2000) },
+        });
+      }
+    }
   }
-  return chunks;
+
+  return richText;
 }
 
 function contentToBlocks(content: string): NotionBlock[] {

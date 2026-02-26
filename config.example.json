@@ -10,6 +10,6 @@
   "news": {
     "categories": ["AI", "technology", "economy"],
     "count_per_category": 5,
-    "only_korean": false
+    "only_korean": true
   }
 }

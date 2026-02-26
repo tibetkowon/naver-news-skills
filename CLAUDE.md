@@ -106,6 +106,7 @@ naver-news-skills/
 │   └── tools/
 │       ├── fetch-news.test.ts
 │       └── create-notion-page.test.ts
+├── dist/                          # Build output (compiled JavaScript)
 ├── config.example.json           # Example config (no real credentials)
 ├── config.json                   # Actual config — NEVER commit this
 ├── .gitignore

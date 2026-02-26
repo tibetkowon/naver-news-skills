@@ -13,7 +13,7 @@ async function fetchUniqueArticles(
   category: string,
   count: number,
   seenLinks: Set<string>,
-  onlyKorean: boolean = false
+  onlyKorean: boolean = true
 ): Promise<{ meta: NaverSearchMeta; articles: NaverArticle[] }> {
   const unique: NaverArticle[] = [];
   let start = 1;
@@ -51,7 +51,7 @@ export async function fetchNews(
 ): Promise<FetchNewsOutput> {
   const categories = input.categories ?? config.news.categories;
   const count = input.count_per_category ?? config.news.count_per_category;
-  const only_korean = input.only_korean ?? config.news.only_korean ?? false;
+  const only_korean = input.only_korean ?? config.news.only_korean ?? true;
 
   if (!Array.isArray(categories) || categories.length === 0) {
     throw new Error("categories must be a non-empty array");
