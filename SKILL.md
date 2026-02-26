@@ -6,12 +6,12 @@ This document describes how to use the `naver-news-skills` CLI tools as an AI ag
 
 ## Overview
 
-Two CLI scripts that handle all API calls, returning pre-processed, token-minimal JSON:
+Two CLI scripts that handle all API calls:
 
-1. `node dist/cli/fetch-news.js` — Fetches news from Naver Search API
-2. `node dist/cli/create-notion-page.js` — Creates a Notion page with content
+1. `node dist/cli/fetch-news.js` — Fetches news from Naver Search API (raw API data)
+2. `node dist/cli/create-notion-page.js` — Creates a Notion page from structured article data
 
-You (the agent) are responsible for summarizing and editing the articles between these two steps.
+You (the agent) are responsible for reviewing and optionally editing the articles between these two steps. Page formatting is handled automatically by the skill via a built-in template.
 
 ---
 
@@ -27,8 +27,8 @@ You (the agent) are responsible for summarizing and editing the articles between
 ```
 1. (Optional) Read config.json — verify or prompt user for missing credentials
 2. node dist/cli/fetch-news.js [--categories "AI,경제"] [--count 5]
-3. Summarize and edit the returned articles  ← YOUR responsibility
-4. echo "<summary>" | node dist/cli/create-notion-page.js --title "뉴스 요약 – 2026-02-23"
+3. Review returned articles; select or edit titles/descriptions  ← YOUR responsibility
+4. echo '<json>' | node dist/cli/create-notion-page.js
 5. Return the Notion page URL to the user
 ```
 
@@ -64,7 +64,7 @@ The scripts read from `config.json` in the project root.
 
 ### `node dist/cli/fetch-news.js`
 
-Fetches articles from the Naver Search API. Pre-processes results to minimize tokens.
+Fetches articles from the Naver Search API. Returns API data with minimal transformation (HTML tags stripped, all other fields returned as-is).
 
 **Arguments** (all optional — defaults come from `config.json`):
 
@@ -73,17 +73,40 @@ Fetches articles from the Naver Search API. Pre-processes results to minimize to
 | `--categories "A,B,C"` | Comma-separated keywords. Overrides `news.categories` in config. |
 | `--count N` | Articles per category (1–100). Overrides `news.count_per_category` in config. |
 
-**Output (stdout):** compact JSON
+**Deduplication:** If the same article URL appears in multiple categories, it is automatically removed from later categories. If articles are removed due to duplication, additional API requests are made to fill the quota with fresh articles.
+
+**Output (stdout):**
 
 ```json
-{"results":[{"category":"AI","articles":[{"title":"Article title","link":"https://news.naver.com/...","originallink":"https://original-source.com/...","description":"Short description (max 200 chars)…","pubDate":"2026-02-23"}]}]}
+{
+  "results": [
+    {
+      "category": "AI",
+      "meta": {
+        "lastBuildDate": "Mon, 23 Feb 2026 10:00:00 +0900",
+        "total": 4520,
+        "start": 1,
+        "display": 5
+      },
+      "articles": [
+        {
+          "title": "Article title",
+          "link": "https://news.naver.com/...",
+          "originallink": "https://original-source.com/...",
+          "description": "Article description (full length, as returned by API)",
+          "pubDate": "Mon, 23 Feb 2026 10:00:00 +0900"
+        }
+      ]
+    }
+  ]
+}
 ```
 
-**Token reduction applied automatically:**
-- `description` truncated to 200 characters
-- `pubDate` shortened to `YYYY-MM-DD`
-- `originallink` omitted when identical to `link`
-- Duplicate articles (same `link`) removed across categories
+**Field notes:**
+- `meta` — Naver API response metadata for the category query
+- `description` — full text (no truncation); HTML tags stripped
+- `pubDate` — RFC 2822 format, exactly as returned by the Naver API
+- `originallink` — original source URL; always included when returned by the API
 
 **On error (stderr):**
 ```json
@@ -103,25 +126,54 @@ node dist/cli/fetch-news.js --categories "AI,기술,경제" --count 5
 
 ### `node dist/cli/create-notion-page.js`
 
-Creates a new Notion page and writes the provided content as blocks. Reads content from **stdin**.
+Creates a new Notion page from structured article data. Reads a JSON object from **stdin**.
 
-**Arguments:**
+The skill applies a built-in template to the article data and converts it to Notion blocks automatically — **you do not need to write any Markdown**.
 
-| Argument | Required | Description |
+**Input (stdin):** JSON with the following shape
+
+```json
+{
+  "title": "뉴스 요약 – 2026-02-23",
+  "categories": [
+    {
+      "category": "AI",
+      "meta": { ... },
+      "articles": [
+        {
+          "title": "Article title",
+          "link": "https://...",
+          "originallink": "https://...",
+          "description": "Description text",
+          "pubDate": "Mon, 23 Feb 2026 10:00:00 +0900"
+        }
+      ]
+    }
+  ],
+  "template": "default"
+}
+```
+
+| Field | Required | Description |
 |---|---|---|
-| `--title "..."` | Yes | Page title. Whitespace is trimmed. |
+| `title` | Yes | Notion page title. Whitespace is trimmed. |
+| `categories` | Yes | Array of category results (same shape as `fetch-news` output). |
+| `template` | No | Template name. Currently only `"default"` is supported. Omit to use default. |
 
-**Input (stdin):** page body as Markdown-style text
+**Default template page structure:**
 
-**Supported Markdown syntax:**
+```
+## {category}
 
-| Syntax | Notion Block Type |
-|---|---|
-| `# Heading` | `heading_1` |
-| `## Heading` | `heading_2` |
-| `### Heading` | `heading_3` |
-| `- item` or `* item` | `bulleted_list_item` |
-| Any other line | `paragraph` |
+### {article.title}
+{article.description}
+
+- 출처: {article.link}
+- 원본: {article.originallink}   ← only when different from link
+- 날짜: {article.pubDate}
+
+---
+```
 
 **Output (stdout):**
 ```json
@@ -133,36 +185,48 @@ Creates a new Notion page and writes the provided content as blocks. Reads conte
 {"error":"error message here"}
 ```
 
-**Examples:**
+**Example:**
 ```bash
-# Pipe content from a variable
-echo "# AI\n\n- Article 1 summary\n- Article 2 summary" | \
-  node dist/cli/create-notion-page.js --title "뉴스 요약 – 2026-02-23"
+# Pass the full fetch-news result (optionally edited) to create-notion-page
+node dist/cli/fetch-news.js --categories "AI,경제" --count 5 > articles.json
 
-# Pipe from a file
-cat summary.md | node dist/cli/create-notion-page.js --title "뉴스 요약"
+# Edit articles.json if needed, then:
+cat articles.json | node -e "
+  const fs = require('fs');
+  const data = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8'));
+  process.stdout.write(JSON.stringify({
+    title: '뉴스 요약 – 2026-02-23',
+    categories: data.results
+  }));
+" | node dist/cli/create-notion-page.js
+```
+
+Or build the JSON inline:
+```bash
+echo '{"title":"뉴스 요약 – 2026-02-23","categories":[...]}' | \
+  node dist/cli/create-notion-page.js
 ```
 
 ---
 
-## Recommended Content Format
-
-When building the content for `create-notion-page`, structure it like this:
+## Recommended Agent Workflow
 
 ```
-# {Category Name}
-
-## {Article Title}
-{1–3 sentence summary}
-Source: {link}
-Published: {pubDate}
-
-## {Article Title}
-...
-
-# {Next Category}
-...
+1. Run fetch-news to get articles
+2. Review each article's title and description
+   - Remove articles that are off-topic or duplicate in content
+   - You may edit titles or descriptions for clarity
+   - Ensure count is reasonable per category
+3. Build the JSON input:
+   {
+     "title": "뉴스 요약 – {today's date}",
+     "categories": <filtered/edited results array from fetch-news>
+   }
+4. Pipe the JSON to create-notion-page
+5. Return the page_url to the user
 ```
+
+The `categories` field for `create-notion-page` accepts the same structure as `fetch-news` output (`results` array). You can pass it directly or after editing.
 
 ---
 
@@ -175,6 +239,7 @@ Published: {pubDate}
 | `rate limit exceeded` | API quota hit | Inform the user; suggest retrying after a short wait |
 | `not found` (Notion) | Wrong `parent_page_id` or missing integration permission | Ask the user to verify the page ID and that the integration is connected |
 | `Invalid category` | Category string has no valid characters after sanitization | Ask the user to use a plain keyword (letters/numbers/Korean only) |
+| `Invalid JSON input` | stdin was not valid JSON | Check the JSON structure matches the required schema |
 | `Network error` | Connectivity issue | Inform the user; do not retry automatically more than once |
 
 ---
@@ -186,12 +251,12 @@ User: "오늘 AI랑 경제 뉴스 요약해서 Notion에 정리해줘"
 
 Agent:
   1. Run: node dist/cli/fetch-news.js --categories "AI,경제" --count 5
-  2. Receive compact JSON with 10 articles (5 per category, pre-processed)
-  3. Summarize each article in 2–3 sentences (in Korean)
-  4. Build Markdown content string
-  5. Run: echo "<content>" | node dist/cli/create-notion-page.js --title "뉴스 요약 – 2026-02-23"
-  6. Receive { "page_url": "https://notion.so/...", "page_id": "..." }
-  7. Reply: "요약이 완료됐습니다. Notion 페이지에서 확인하세요: https://notion.so/..."
+  2. Receive JSON with articles (5 per category, full description, raw pubDate)
+  3. Review articles — remove any off-topic items, optionally edit titles
+  4. Run: echo '<json>' | node dist/cli/create-notion-page.js
+     where <json> = { "title": "뉴스 요약 – 2026-02-26", "categories": <edited results> }
+  5. Receive { "page_url": "https://notion.so/...", "page_id": "..." }
+  6. Reply: "요약이 완료됐습니다. Notion 페이지에서 확인하세요: https://notion.so/..."
 ```
 
 ---
@@ -202,9 +267,10 @@ Agent:
 |---|---|
 | `src/cli/fetch-news.ts` | CLI entry point for fetch_news |
 | `src/cli/create-notion-page.ts` | CLI entry point for create_notion_page |
-| `src/tools/fetch-news.ts` | fetch_news logic + token reduction |
-| `src/tools/create-notion-page.ts` | create_notion_page logic |
-| `src/naver-client.ts` | Naver Search API HTTP client |
+| `src/tools/fetch-news.ts` | fetch_news logic (dedup with replacement) |
+| `src/tools/create-notion-page.ts` | create_notion_page logic (applies template) |
+| `src/notion-template.ts` | Template system — converts article data to Notion blocks |
+| `src/naver-client.ts` | Naver Search API HTTP client (with pagination support) |
 | `src/notion-client.ts` | Notion API HTTP client |
 | `src/config.ts` | Config loading and validation |
 | `src/types.ts` | All TypeScript types |
