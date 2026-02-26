@@ -12,6 +12,8 @@ export interface NewsConfig {
   categories: string[];
   count_per_category: number;
   only_korean?: boolean;
+  whitelist_domains?: string[];
+  blacklist_domains?: string[];
 }
 
 export interface AppConfig {
@@ -53,6 +55,8 @@ export interface FetchNewsInput {
   categories?: string[];
   count_per_category?: number;
   only_korean?: boolean;
+  whitelist_domains?: string[];
+  blacklist_domains?: string[];
 }
 
 export interface FetchNewsOutput {
@@ -74,6 +78,8 @@ export interface NewsToNotionInput {
   categories?: string[];
   count_per_category?: number;
   only_korean?: boolean;
+  whitelist_domains?: string[];
+  blacklist_domains?: string[];
   title?: string;
   template?: string;
 }

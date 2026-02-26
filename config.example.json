@@ -10,6 +10,18 @@
   "news": {
     "categories": ["AI", "technology", "economy"],
     "count_per_category": 5,
-    "only_korean": true
+    "only_korean": true,
+    "whitelist_domains": [
+      "yna.co.kr",
+      "khan.co.kr",
+      "hani.co.kr",
+      "donga.com",
+      "chosun.com",
+      "joongang.co.kr",
+      "hankyung.com",
+      "mk.co.kr",
+      "sedaily.com"
+    ],
+    "blacklist_domains": []
   }
 }

@@ -87,6 +87,8 @@ cp config.example.json config.json
 | `notion.parent_page_id` | 뉴스 페이지를 만들 Notion 페이지 ID |
 | `news.categories` | 기본 검색 키워드 목록 |
 | `news.only_korean` | 한국어 기사만 수집할지 여부 (기본값: `true`) |
+| `news.whitelist_domains` | 허용할 언론사 도메인 목록 (예: `["yna.co.kr", "chosun.com"]`) |
+| `news.blacklist_domains` | 제외할 언론사 도메인 목록 (예: `["tistory.com", "velog.io"]`) |
 
 > `config.json`은 `.gitignore`에 포함되어 있어 실수로 커밋되지 않습니다.
 > 생성된 Notion 페이지의 링크는 클릭 가능한 하이퍼링크로 자동 변환됩니다.

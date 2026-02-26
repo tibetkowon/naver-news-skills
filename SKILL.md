@@ -61,12 +61,15 @@ node dist/cli/news-to-notion.js [--categories "AI,경제"] [--count 5] [--title 
   },
   "news": {
     "categories": ["string"],
-    "count_per_category": 5
+    "count_per_category": 5,
+    "only_korean": true,
+    "whitelist_domains": ["string"],
+    "blacklist_domains": ["string"]
   }
 }
 ```
 
-All fields are required. On first run or when fields are missing, prompt the user for each value and write them to `config.json`.
+All fields are required. Domain lists can be empty arrays `[]`. On first run or when fields are missing, prompt the user for each value and write them to `config.json`.
 
 ---
 
@@ -110,14 +113,10 @@ node dist/cli/news-to-notion.js --categories "AI" --count 3 --title "AI 뉴스 �
 The skill automatically formats the Notion page as follows:
 
 ```
-## {category}
+## {emoji} {category}
 
-### {article title}
+### [{article title}]({article link})
 {article description}
-
-- 출처: {link}
-- 원본: {originallink}   ← only when different from link
-- 날짜: {pubDate}
 
 ---
 

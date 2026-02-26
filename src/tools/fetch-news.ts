@@ -13,21 +13,27 @@ async function fetchUniqueArticles(
   category: string,
   count: number,
   seenLinks: Set<string>,
-  onlyKorean: boolean = true
+  onlyKorean: boolean = true,
+  whitelistDomains: string[] = [],
+  blacklistDomains: string[] = []
 ): Promise<{ meta: NaverSearchMeta; articles: NaverArticle[] }> {
   const unique: NaverArticle[] = [];
   let start = 1;
   let lastMeta: NaverSearchMeta | undefined;
 
+  const needsRefill = onlyKorean || whitelistDomains.length > 0 || blacklistDomains.length > 0;
+
   while (unique.length < count) {
-    // When filtering by language, we want to fetch as many as possible (up to 100) 
-    // to find enough Korean articles in each API call.
-    const batchSize = onlyKorean ? 100 : Math.min(100, count);
+    // When filtering, we want to fetch as many as possible (up to 100) 
+    // to find enough matching articles in each API call.
+    const batchSize = needsRefill ? 100 : Math.min(100, count);
     const { meta, articles } = await client.searchNews(
       category,
       batchSize,
       start,
-      onlyKorean
+      onlyKorean,
+      whitelistDomains,
+      blacklistDomains
     );
     lastMeta = meta;
 
@@ -41,9 +47,7 @@ async function fetchUniqueArticles(
     }
 
     // No more articles available or reached limit
-    // Note: client.searchNews returns up to batchSize items AFTER filtering.
-    // If it returns fewer than batchSize, it means there are no more matches in that 100-item block.
-    // But we need to keep going if we haven't reached the end of the total search (1000 items).
+    if (articles.length < batchSize && !needsRefill) break;
     start += 100; // Always jump by 100 to get the next page of results
     if (start > 1000) break;
   }
@@ -58,6 +62,8 @@ export async function fetchNews(
   const categories = input.categories ?? config.news.categories;
   const count = input.count_per_category ?? config.news.count_per_category;
   const only_korean = input.only_korean ?? config.news.only_korean ?? true;
+  const whitelist_domains = input.whitelist_domains ?? config.news.whitelist_domains ?? [];
+  const blacklist_domains = input.blacklist_domains ?? config.news.blacklist_domains ?? [];
 
   if (!Array.isArray(categories) || categories.length === 0) {
     throw new Error("categories must be a non-empty array");
@@ -76,7 +82,9 @@ export async function fetchNews(
       category,
       count,
       seenLinks,
-      only_korean
+      only_korean,
+      whitelist_domains,
+      blacklist_domains
     );
     results.push({ category, meta, articles });
   }

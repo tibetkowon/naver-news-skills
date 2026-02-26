@@ -32,7 +32,9 @@ export class NaverClient {
     category: string,
     count: number,
     start: number = 1,
-    onlyKorean: boolean = false
+    onlyKorean: boolean = false,
+    whitelistDomains: string[] = [],
+    blacklistDomains: string[] = []
   ): Promise<{ meta: NaverSearchMeta; articles: NaverArticle[] }> {
     const safeCategory = sanitizeCategory(category);
     if (!safeCategory) {
@@ -87,15 +89,34 @@ export class NaverClient {
       pubDate: item.pubDate,
     }));
 
-    const filteredArticles = onlyKorean
-      ? items.filter((article) => {
-          const koreanRegex = /[가-힣ㄱ-ㅎㅏ-ㅣ]/;
-          return (
-            koreanRegex.test(article.title) ||
-            koreanRegex.test(article.description)
-          );
-        })
-      : items;
+    let filteredArticles = items;
+
+    // 1. Language filtering
+    if (onlyKorean) {
+      filteredArticles = filteredArticles.filter((article) => {
+        const koreanRegex = /[가-힣ㄱ-ㅎㅏ-ㅣ]/;
+        return (
+          koreanRegex.test(article.title) ||
+          koreanRegex.test(article.description)
+        );
+      });
+    }
+
+    // 2. Domain Whitelist filtering
+    if (whitelistDomains.length > 0) {
+      filteredArticles = filteredArticles.filter((article) => {
+        const targetLink = article.originallink || article.link;
+        return whitelistDomains.some((domain) => targetLink.includes(domain));
+      });
+    }
+
+    // 3. Domain Blacklist filtering
+    if (blacklistDomains.length > 0) {
+      filteredArticles = filteredArticles.filter((article) => {
+        const targetLink = article.originallink || article.link;
+        return !blacklistDomains.some((domain) => targetLink.includes(domain));
+      });
+    }
 
     return {
       meta: {

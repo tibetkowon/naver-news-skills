@@ -20,6 +20,8 @@ export async function newsToNotion(
       categories: input.categories,
       count_per_category: input.count_per_category,
       only_korean: input.only_korean,
+      whitelist_domains: input.whitelist_domains,
+      blacklist_domains: input.blacklist_domains,
     },
     config
   );

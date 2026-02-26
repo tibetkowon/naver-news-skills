@@ -66,6 +66,18 @@ function validateConfig(raw: unknown): AppConfig {
   const only_korean =
     typeof news["only_korean"] === "boolean" ? news["only_korean"] : true;
 
+  const whitelist_domains = Array.isArray(news["whitelist_domains"])
+    ? (news["whitelist_domains"] as string[]).filter(
+        (d) => typeof d === "string"
+      )
+    : [];
+
+  const blacklist_domains = Array.isArray(news["blacklist_domains"])
+    ? (news["blacklist_domains"] as string[]).filter(
+        (d) => typeof d === "string"
+      )
+    : [];
+
   return {
     naver: {
       client_id: naver["client_id"] as string,
@@ -79,6 +91,8 @@ function validateConfig(raw: unknown): AppConfig {
       categories: news["categories"] as string[],
       count_per_category: news["count_per_category"] as number,
       only_korean,
+      whitelist_domains,
+      blacklist_domains,
     },
   };
 }
