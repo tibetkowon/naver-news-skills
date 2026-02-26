@@ -1,3 +1,9 @@
+---
+name: naver-news-skills
+description: 네이버 뉴스를 검색하여 포맷팅한 뒤 노션 페이지로 생성합니다.
+when: 사용자가 "뉴스를 노션에 올려줘" 또는 "뉴스 정리해줘"라고 요청할 때
+---
+
 # SKILL.md — naver-news-skills
 
 This document describes how to use the `naver-news-skills` CLI as an AI agent.
